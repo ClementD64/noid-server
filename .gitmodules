@@ -1,0 +1,3 @@
+[submodule "noid-webui"]
+	path = noid-webui
+	url = https://github.com/ClementD64/noid-webui.git
