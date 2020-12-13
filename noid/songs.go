@@ -1,6 +1,7 @@
 package noid
 
 import (
+	"context"
 	"errors"
 	"io/ioutil"
 	"path/filepath"
@@ -33,10 +34,14 @@ func (s *Songs) JSON() (map[string]string, error) {
 
 // Title return the song title
 func (s *Songs) Title() (string, error) {
+	ctx := context.Background()
+	rdb := redis.NewClient(rdbConf)
+	defer rdb.Close()
+
 	title, err := rdb.HGet(ctx, s.file, "title").Result()
 
 	if err == redis.Nil {
-		t, _, _, err := s.setCache()
+		t, _, _, err := s.setCache(ctx, rdb)
 
 		if err != nil {
 			return "", err
@@ -52,10 +57,14 @@ func (s *Songs) Title() (string, error) {
 
 // Cover return the song cover and the cover mimetype
 func (s *Songs) Cover() ([]byte, string, error) {
+	ctx := context.Background()
+	rdb := redis.NewClient(rdbConf)
+	defer rdb.Close()
+
 	field, err := rdb.HMGet(ctx, s.file, "cover", "mime").Result()
 
 	if err == redis.Nil || len(field) != 2 || field[0] == nil || field[1] == nil {
-		_, cover, mime, err := s.setCache()
+		_, cover, mime, err := s.setCache(ctx, rdb)
 
 		if err != nil {
 			return nil, "", err
@@ -76,7 +85,7 @@ func (s *Songs) Cover() ([]byte, string, error) {
 	return []byte(cover), mime, nil
 }
 
-func (s *Songs) setCache() (string, []byte, string, error) {
+func (s *Songs) setCache(ctx context.Context, rdb *redis.Client) (string, []byte, string, error) {
 	tag, err := id3v2.Open(filepath.Join(root, s.file), id3v2.Options{Parse: true})
 	if err != nil {
 		return "", nil, "", err
@@ -136,5 +145,7 @@ func coverHandler(c *fiber.Ctx) error {
 	}
 
 	c.Set("Content-Type", mime)
+	c.Set("Cache-Control", "max-age=2592000")
+	c.Set("Cache-Control", "public")
 	return c.Send(cover)
 }

@@ -8,19 +8,18 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func getRedis() *redis.Client {
+func loadRedis() {
 	url, ok := os.LookupEnv("NOID_REDIS")
 
 	if !ok {
 		url = "redis://localhost:6379/0"
 	}
 
-	opt, err := redis.ParseURL(url)
+	conf, err := redis.ParseURL(url)
 	if err != nil {
 		panic(err)
 	}
-
-	return redis.NewClient(opt)
+	rdbConf = conf
 }
 
 func sendError(c *fiber.Ctx, err error) error {
